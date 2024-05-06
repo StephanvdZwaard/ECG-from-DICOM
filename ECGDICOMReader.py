@@ -9,10 +9,10 @@ from scipy import signal
 
 class ECGDICOMReader:
     """ Extract voltage data from a ECG DICOM file
-        Author: Philip Croon, p.croon@amsterdamumc.nl
+        Authors: Stephan van der Zwaard, s.vanderzwaard@amsterdamumc.nl and Philip Croon, p.croon@amsterdamumc.nl
         for questions feel free to email.    
         
-        --Update 2023-09-19  Added information on Manufacturer, Accession number, Software and the Median Waveforms by Stephan van der Zwaard
+        -- First version based on code from Philip Croon, p.croon@amsterdamumc.nl
     """
 
     def __init__(self, augmentLeads=False, resample_500=True):
@@ -72,16 +72,26 @@ class ECGDICOMReader:
                     return(pd.DataFrame({'filetype': [self.ECG.data_element('SOPClassUID').repval], 'error': 'No ECG waveform present'}) )
                 
                 # Add channel settings and lead information 
+                wave                       = self.ECG.WaveformSequence[0]
                 settings                   = self.ECG.WaveformSequence[0].ChannelDefinitionSequence[0]
+                self.ChannelNumber         = wave.NumberOfWaveformChannels if set(['NumberOfWaveformChannels']).issubset(wave.dir()) else '' 
                 self.ChannelSensitivity    = settings.ChannelSensitivity   if set(['ChannelSensitivity']).issubset(settings.dir()) else '' 
                 self.ChannelBaseline       = settings.ChannelBaseline      if set(['ChannelBaseline']).issubset(settings.dir()) else '' 
                 self.ChannelSampleSkew     = settings.ChannelSampleSkew    if set(['ChannelSampleSkew']).issubset(settings.dir()) else '' 
                 self.FilterLowFrequency    = settings.FilterLowFrequency   if set(['FilterLowFrequency']).issubset(settings.dir()) else '' 
                 self.FilterHighFrequency   = settings.FilterHighFrequency  if set(['FilterHighFrequency']).issubset(settings.dir()) else '' 
-                self.NotchFilterFrequency  = settings.NotchFilterFrequency if set(['NotchFilterFrequency']).issubset(settings.dir()) else ''        
-                self.lead_info_final       = self.lead_info(0)
-                self.LeadVoltages          = self.make_leadvoltages(0)
-                self.sf                    = self.ECG.WaveformSequence[0].SamplingFrequency
+                self.NotchFilterFrequency  = settings.NotchFilterFrequency if set(['NotchFilterFrequency']).issubset(settings.dir()) else ''
+                self.sf                    = wave.SamplingFrequency
+                self.sf_original           = wave.SamplingFrequency
+                # Check number of channels in ECG waveform
+                if self.ChannelNumber >= 8: 
+                    self.lead_info_final       = self.lead_info(0)
+                    self.LeadVoltages          = self.make_leadvoltages(0)
+                else: 
+                    self.LeadVoltages          = np.zeros((0,0))
+                    if (verbose==True): 
+                        print('Limited number of ECG waveform channels present: inspect DICOM file')
+                    #return(pd.DataFrame({'filetype': [self.ECG.data_element('SOPClassUID').repval], 'error': 'Less than 8 or 12-leads ECG present:'+str(self.ECG.WaveformSequence[0][0x003a0005].value)}) )
 
                 # Check existance of MedianWaveform
                 try: 
@@ -95,6 +105,8 @@ class ECGDICOMReader:
                     self.LeadVoltages2         = np.zeros((0,0))
                     if (verbose==True): 
                         print('No Median Waveform present')
+
+
 
                 self.samplingfrequency     = self.resampling_500hz()
 
@@ -118,14 +130,16 @@ class ECGDICOMReader:
         read_dict["PatientName"]              = str(self.PatientName)
         read_dict["PatientSex"]               = self.PatientSex
         read_dict["StudyDate"]                = datetime.strptime(self.StudyDate, "%Y%m%d").strftime('%Y-%m-%d') #if your date is different format adapt
-        read_dict["StudyTime"]                = self.StudyTime
+        read_dict["StudyTime"]                = self.StudyTime[:6]
         read_dict["StudyDescription"]         = self.StudyDescription
-        read_dict["AcquisitionDateTime"]      = self.AcquisitionDateTime
+        read_dict["AcquisitionDateTime"]      = datetime.strptime(self.AcquisitionDateTime[:14], "%Y%m%d%H%M%S").strftime('%Y-%m-%d %H:%M:%S') 
         read_dict["AcquisitionTimeZone"]      = self.AcquisitionTimeZone
         #read_dict["DatapointsWaveform"]       = len(list(self.LeadVoltages.values())[0])
         #read_dict["DatapointsMedianWaveform"] = len(list(self.LeadVoltages2.values())[0])
         read_dict["AccessionNumber"]          = self.AccessionNumber
         read_dict["SamplingFrequency"]        = self.samplingfrequency
+        read_dict["OriginalSamplingFrequency"]= self.sf_original
+        read_dict["ChannelNumber"]            = self.ChannelNumber
         read_dict["ChannelSensitivity"]       = self.ChannelSensitivity
         read_dict["ChannelBaseline"]          = self.ChannelBaseline
         read_dict["ChannelSampleSkew"]        = self.ChannelSampleSkew

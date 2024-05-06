@@ -19,6 +19,7 @@ from scipy import signal
 from pydicom import dcmread
 from pydicom.waveforms import multiplex_array
 from functions import recursive_copy
+from functions import get_batch_prefix
 
 #Set options
 np.set_printoptions(threshold = 500)
@@ -52,7 +53,7 @@ original_waves = pd.DataFrame()
 error_dicom    = pd.DataFrame()
 
 # Set-up progressbar
-i_start = 38000
+i_start = 0
 i_end   = len(ECG_files)
 print(i_end)
 pbar    = progressbar.ProgressBar(maxval = len(ECG_files[i_start:i_end])-1).start()
@@ -71,8 +72,7 @@ for i in range(i_start,i_end) :
         mw["waveform"] = "median_beat"
         mw = mw.reset_index()
         mw = mw[["SOPinstanceUID", "waveform", "lead","id","lead_"]]
-        mw = mw.rename(columns = {'lead_':'voltage'})
-
+        mw = mw.rename(columns = {'lead_':'voltage', 'id':'sample_id', 'SOPinstanceUID':'record_id_ecg'})
 
         # Generate Table 2: waveform rhythm
         w = pd.DataFrame(dicom['Waveforms'])
@@ -83,14 +83,12 @@ for i in range(i_start,i_end) :
         w["waveform"] = "rhythm"
         w = w.reset_index()
         w = w[["SOPinstanceUID", "waveform","lead", "id","lead_"]]
-        w = w.rename(columns = {'lead_':'voltage'})
-
+        w = w.rename(columns = {'lead_':'voltage', 'id':'sample_id', 'SOPinstanceUID':'record_id_ecg'})
 
         # Generate Table 3: general info
         wave = dicom.pop('Waveforms')
         mbeat= dicom.pop('MedianWaveforms')
         info = pd.DataFrame.from_dict(dicom, orient = 'index').transpose()
-
 
         # Combine data with other records
         general_info    = pd.concat([general_info,info], axis=0)
@@ -102,23 +100,24 @@ for i in range(i_start,i_end) :
         dicom['filename'] = ECG_files[i].replace(path_to_dicom,'')
         error_dicom     = pd.concat([error_dicom,dicom], axis=0)
 
-
     # Save to CSV-files (at end of query or for every X records)
     batch_size = 1000
     if ((i+1) == i_end or (i+1)%batch_size == 0):
 
         if ((i+1) == i_end):
             
-            batch_pre  = str(i_start)
-            batch_post = str(i_end)
+            batch_pre  = i_start
+            batch_post = i_end
 
         elif ((i+1)%batch_size == 0):
             
-            batch_pre  = str(i_start) if (i+1)==batch_size else str(int((((i+1)/batch_size)-1)*batch_size))
-            batch_post = str(int(((i+1)/batch_size)*batch_size))
+            batch_pre  = i_start if (i+1)==batch_size else int((((i+1)/batch_size)-1)*batch_size)
+            batch_post = int(((i+1)/batch_size)*batch_size)
 
         # Summarise batch range
-        batch = batch_pre+'_'+batch_post 
+        batch_prefix  = get_batch_prefix(batch_pre)
+        batch_postfix = get_batch_prefix(batch_post)
+        batch         = batch_prefix+str(batch_pre)+'_'+batch_postfix+str(batch_post) 
 
         # Save separate CSV-files for each batch
         error_dicom.to_csv(path_to_export+'DICOM_error_'+batch+'.csv', index=False)
