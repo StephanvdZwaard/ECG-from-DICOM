@@ -74,6 +74,7 @@ class ECGDICOMReader:
                 # Add channel settings and lead information 
                 wave                       = self.ECG.WaveformSequence[0]
                 settings                   = self.ECG.WaveformSequence[0].ChannelDefinitionSequence[0]
+                self.TimeOffset            = wave.MultiplexGroupTimeOffset if set(['MultiplexGroupTimeOffset']).issubset(wave.dir()) else '' 
                 self.ChannelNumber         = wave.NumberOfWaveformChannels if set(['NumberOfWaveformChannels']).issubset(wave.dir()) else '' 
                 self.ChannelSensitivity    = settings.ChannelSensitivity   if set(['ChannelSensitivity']).issubset(settings.dir()) else '' 
                 self.ChannelBaseline       = settings.ChannelBaseline      if set(['ChannelBaseline']).issubset(settings.dir()) else '' 
@@ -106,8 +107,6 @@ class ECGDICOMReader:
                     if (verbose==True): 
                         print('No Median Waveform present')
 
-
-
                 self.samplingfrequency     = self.resampling_500hz()
 
                 # Create dictionary from the above 
@@ -137,7 +136,7 @@ class ECGDICOMReader:
         #read_dict["DatapointsWaveform"]       = len(list(self.LeadVoltages.values())[0])
         #read_dict["DatapointsMedianWaveform"] = len(list(self.LeadVoltages2.values())[0])
         read_dict["AccessionNumber"]          = self.AccessionNumber
-        read_dict["SamplingFrequency"]        = self.samplingfrequency
+        read_dict["SamplingFrequency"]        = self.samplingfrequency if self.ChannelNumber >= 8 else self.sf_original
         read_dict["OriginalSamplingFrequency"]= self.sf_original
         read_dict["ChannelNumber"]            = self.ChannelNumber
         read_dict["ChannelSensitivity"]       = self.ChannelSensitivity

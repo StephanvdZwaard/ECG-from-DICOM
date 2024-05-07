@@ -133,5 +133,3 @@ for i in range(i_start,i_end) :
 
     # Update progressbar
     pbar.update(i-i_start)
-
-
