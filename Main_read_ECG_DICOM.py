@@ -1,11 +1,20 @@
-## Main file for reading ECG DICOM's 
+# -------------------------------------------------------------------------------------
+#                   Code for converting ECG DICOM's into tabular data
+# -------------------------------------------------------------------------------------
+#
+# Description:      This script converts ECG data stored in DICOM into tabular data.
+# Authors:          Stephan van der Zwaard
+# Date:             18-06-2024
+# Python.version:   3.9.1
 
-# Set-up environment
+# -------------------------------------------------------------------------------------
+#                                  Settings & dependencies 
+# -------------------------------------------------------------------------------------
 
 # Install required packages
 # pip install -r requirements.txt
 
-#Import required libraries
+# Import required libraries
 import os;
 import shutil;
 import sys;
@@ -23,28 +32,29 @@ from functions import get_batch_prefix
 
 #Set options
 np.set_printoptions(threshold = 500)
-#%matplotlib inline
 
+# Import and initialize class to parse DICOM file with ECG 
 from ECGDICOMReader import ECGDICOMReader
-
-#Initialize
 ecgreader = ECGDICOMReader()
 verbose = True
 
-# Define paths
+# Define required paths
 base_path      = "C:/Users/t1-svanderzwaard/Documents/"
 path_to_dicom  = base_path+"Python/ECG/dicom/"
 path_to_export = "D:/AnacondaData/Stephan/"
 
-# Obtain all DICOM files
-#files = os.listdir(path_to_dicom)
+# -------------------------------------------------------------------------------------
+#                       Data pipeline: conversion from DICOM to CSV 
+# -------------------------------------------------------------------------------------
+
+# Retrieve all DICOM files to be converted
 ECG_files = list() 
 for path, subdirs, files in os.walk(path_to_dicom):
     for filename in files:
         ECG_files.append(path+'/'+filename)
 #print(ECG_files)
 
-# -----------------------  Read ECG from DICOM  -------------------------------------
+# Loop over all DICOM files to convert using ECGDICOMReader()
 
 # Preallocate dataframes
 general_info   = pd.DataFrame()
@@ -90,17 +100,17 @@ for i in range(i_start,i_end) :
         mbeat= dicom.pop('MedianWaveforms')
         info = pd.DataFrame.from_dict(dicom, orient = 'index').transpose()
 
-        # Combine data with other records
+        # Combine data with previous records
         general_info    = pd.concat([general_info,info], axis=0)
         median_waves    = pd.concat([median_waves,mw], axis=0)
         original_waves  = pd.concat([original_waves,w], axis=0)
     
-    except:
-        dicom['file_no'] = i
+    except: # Retrieve relevant information when DICOM could not be read including the error
+        dicom['file_no']  = i
         dicom['filename'] = ECG_files[i].replace(path_to_dicom,'')
-        error_dicom     = pd.concat([error_dicom,dicom], axis=0)
+        error_dicom       = pd.concat([error_dicom,dicom], axis=0)
 
-    # Save to CSV-files (at end of query or for every X records)
+    # Save to CSV-files (at end of query or for every X records defined by batch size)
     batch_size = 1000
     if ((i+1) == i_end or (i+1)%batch_size == 0):
 

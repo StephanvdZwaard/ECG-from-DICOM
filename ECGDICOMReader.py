@@ -1,4 +1,17 @@
-# Define class for reading ECGs from DICOM files.
+# -------------------------------------------------------------------------------------
+#                     Define class for reading ECGs from DICOM files.
+# -------------------------------------------------------------------------------------
+#
+# Description:      Class to convert ECG data from DICOM to tabular data
+# Authors:          Stephan van der Zwaard [s.vanderzwaard@amsterdamumc.nl]  
+#                   Philip Croon [p.croon@amsterdamumc.nl]
+# Date:             18-06-2024
+# Python.version:   3.9.1
+# 
+
+# -------------------------------------------------------------------------------------
+#                                  Settings & dependencies 
+# -------------------------------------------------------------------------------------
 
 import numpy as np;
 import pandas as pd;
@@ -7,8 +20,12 @@ from pydicom.waveforms import multiplex_array
 from datetime import datetime
 from scipy import signal
 
+# -------------------------------------------------------------------------------------
+#                                       Define class 
+# -------------------------------------------------------------------------------------
+
 class ECGDICOMReader:
-    """ Extract voltage data from a ECG DICOM file
+    """ Extract ECG waveform voltage and metadata data from a ECG measuremet stored within a DICOM file
         Authors: Stephan van der Zwaard, s.vanderzwaard@amsterdamumc.nl and Philip Croon, p.croon@amsterdamumc.nl
         for questions feel free to email.    
         
@@ -44,7 +61,7 @@ class ECGDICOMReader:
                     self.StudyDate             = self.ECG.StudyDate
                     self.StudyTime             = self.ECG.StudyTime
                     self.AccessionNumber       = self.ECG.AccessionNumber
-                else:
+                else: # if not, an error is returned
                     if (verbose==True): 
                         print('Essential DICOM tags are missing: inspect DICOM file')
                     return(pd.DataFrame({'filetype': [self.ECG.data_element('SOPClassUID').repval], 'error': 'Essential DICOM tags missing'}) )
@@ -63,10 +80,10 @@ class ECGDICOMReader:
 
                 
                 # Waveform information
-                # Check existance of raw Waveform
+                # Check if a raw waveform is included in the DICOM file
                 try:
                     self.Waveforms             = self.ECG.waveform_array(0).T
-                except:
+                except: # if not, an error is returned
                     if (verbose==True): 
                         print('No ECG waveform present: inspect DICOM file')
                     return(pd.DataFrame({'filetype': [self.ECG.data_element('SOPClassUID').repval], 'error': 'No ECG waveform present'}) )
@@ -84,17 +101,18 @@ class ECGDICOMReader:
                 self.NotchFilterFrequency  = settings.NotchFilterFrequency if set(['NotchFilterFrequency']).issubset(settings.dir()) else ''
                 self.sf                    = wave.SamplingFrequency
                 self.sf_original           = wave.SamplingFrequency
+
                 # Check number of channels in ECG waveform
                 if self.ChannelNumber >= 8: 
                     self.lead_info_final       = self.lead_info(0)
-                    self.LeadVoltages          = self.make_leadvoltages(0)
-                else: 
+                    self.LeadVoltages          = self.make_leadvoltages(0) 
+                else: # Only return lead voltages when >= 8 leads are included
                     self.LeadVoltages          = np.zeros((0,0))
                     if (verbose==True): 
                         print('Limited number of ECG waveform channels present: inspect DICOM file')
                     #return(pd.DataFrame({'filetype': [self.ECG.data_element('SOPClassUID').repval], 'error': 'Less than 8 or 12-leads ECG present:'+str(self.ECG.WaveformSequence[0][0x003a0005].value)}) )
 
-                # Check existance of MedianWaveform
+                # Check if a median waveform is included in the DICOM file
                 try: 
                     self.MedianWaveforms       = self.ECG.waveform_array(1).T
                     self.lead_info_final       = self.lead_info(1)
@@ -118,6 +136,7 @@ class ECGDICOMReader:
             print(str(e))
             pass
 
+    # Define function to create dictionary with relevant metadata about ECG measurement from the DICOM file
     def readable_dict(self):
         """Make a readable dict"""
         read_dict                             = {}
@@ -152,9 +171,10 @@ class ECGDICOMReader:
         read_dict["Waveforms"]                = self.LeadVoltages
         read_dict["MedianWaveforms"]          = self.LeadVoltages2
         return read_dict
-
+    
+    # Define function to extract voltages from ECG waveforms 
     def make_leadvoltages(self,nr):
-        """Extracts the voltages out of the DICOM"""
+        """Extracts the voltages out of the DICOM file with waveforms"""
         num_leads = 0
         leads = {}
 
@@ -162,12 +182,15 @@ class ECGDICOMReader:
             num_leads += 1
             leads[self.lead_info_final[i]] = lead
         if num_leads == 8 and self.augmentLeads:
+            # Calculate limb leads when not all are present in the DICOM file (according to Eindhoven and Goldberger's leads).
+            # For more information see https://ecgwaves.com/topic/ekg-ecg-leads-electrodes-systems-limb-chest-precordial/
             leads['III'] = np.subtract(leads['II'], leads['I'])
             leads['aVR'] = np.add(leads['I'], leads['II']) * (-0.5)
             leads['aVL'] = np.subtract(leads['I'], 0.5 * leads['II'])
             leads['aVF'] = np.subtract(leads['II'], 0.5 * leads['I'])
         return leads
-
+    
+    # Define function to return lead information from ECG waveforms 
     def lead_info(self,nr):
         """returns the names of the channels from the DICOM"""
         leadnames = {}
@@ -178,7 +201,8 @@ class ECGDICOMReader:
                 units = channel.ChannelSourceSequence[0].CodeMeaning
             leadnames[ii] = source.replace('Lead','').strip()
         return leadnames
-
+    
+    # Define function to resample ECG waveforms to the default 500 Hz when necessary 
     def resampling_500hz(self):
         """In case sf is 250, make 500"""
         if self.resample_500 is False:
