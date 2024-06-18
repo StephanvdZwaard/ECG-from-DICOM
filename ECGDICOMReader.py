@@ -6,7 +6,7 @@
 # Authors:          Stephan van der Zwaard [s.vanderzwaard@amsterdamumc.nl]  
 #                   Philip Croon [p.croon@amsterdamumc.nl]
 # Date:             18-06-2024
-# Python.version:   3.9.1
+# Python.version:   3.9.13
 # 
 
 # -------------------------------------------------------------------------------------

@@ -5,7 +5,7 @@
 # Description:      This script converts ECG data stored in DICOM into tabular data.
 # Authors:          Stephan van der Zwaard
 # Date:             18-06-2024
-# Python.version:   3.9.1
+# Python.version:   3.9.13
 
 # -------------------------------------------------------------------------------------
 #                                  Settings & dependencies 
