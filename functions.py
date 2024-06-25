@@ -27,6 +27,8 @@ def get_batch_prefix(batch):
             
     if batch < 0 or type(batch) is not int:
         raise ValueError('Incorrect batch index: inspect selected start/end index')
+    elif batch == 0:
+        prefix = '00000'
     elif batch < 100:
         prefix = '0000' # if batch size is 100, prefill with four zeros, so that 0000100
     elif batch < 1000:

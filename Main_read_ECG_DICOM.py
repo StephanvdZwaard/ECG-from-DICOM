@@ -20,7 +20,7 @@ import shutil;
 import sys;
 import numpy as np;
 import pandas as pd;
-import matplotlib.pyplot as plt;
+#import matplotlib.pyplot as plt;
 import progressbar;
 
 from datetime import datetime
@@ -39,8 +39,9 @@ ecgreader = ECGDICOMReader()
 verbose = True
 
 # Define required paths
-base_path      = "C:/Users/t1-svanderzwaard/Documents/"
+base_path      = "D:/Persoonlijke mappen/Stephan/"
 path_to_dicom  = base_path+"Python/ECG/dicom/"
+path_to_archive= path_to_dicom+"/processed/"
 path_to_export = "D:/AnacondaData/Stephan/"
 
 # -------------------------------------------------------------------------------------
@@ -64,8 +65,8 @@ error_dicom    = pd.DataFrame()
 
 # Set-up progressbar
 i_start = 0
-i_end   = len(ECG_files)
-print(i_end)
+i_end   = 5000 #len(ECG_files) #account for Python indexing
+print('Number of DICOMs: '+str(len(range(i_start,i_end))))
 pbar    = progressbar.ProgressBar(maxval = len(ECG_files[i_start:i_end])-1).start()
 
 for i in range(i_start,i_end) : 
@@ -106,17 +107,22 @@ for i in range(i_start,i_end) :
         original_waves  = pd.concat([original_waves,w], axis=0)
     
     except: # Retrieve relevant information when DICOM could not be read including the error
-        dicom['file_no']  = i
+        dicom['file_no']  = i+1 #account for python indexing
         dicom['filename'] = ECG_files[i].replace(path_to_dicom,'')
         error_dicom       = pd.concat([error_dicom,dicom], axis=0)
 
+    # Move processed ECG DICOMs to archive to distinguish processed from unread files.
+    if not os.path.exists(path_to_archive):
+           os.makedirs(path_to_archive)
+    os.rename(ECG_files[i], ECG_files[i].replace(path_to_dicom,path_to_archive))
+
     # Save to CSV-files (at end of query or for every X records defined by batch size)
     batch_size = 1000
-    if ((i+1) == i_end or (i+1)%batch_size == 0):
+    if ((i+1) == i_end or (i+1)%batch_size == 0): #account for python indexing
 
         if ((i+1) == i_end):
             
-            batch_pre  = i_start
+            batch_pre  = i_start if (i_end)<=batch_size else int((((i+1)//batch_size))*batch_size)
             batch_post = i_end
 
         elif ((i+1)%batch_size == 0):
@@ -143,3 +149,6 @@ for i in range(i_start,i_end) :
 
     # Update progressbar
     pbar.update(i-i_start)
+
+# If finished
+print('Conversion finished! --- ')
