@@ -64,8 +64,8 @@ original_waves = pd.DataFrame()
 error_dicom    = pd.DataFrame()
 
 # Set-up progressbar
-i_start = 0
-i_end   = 5000 #len(ECG_files) #account for Python indexing
+i_start = 5000
+i_end   = 10000 #len(ECG_files) #account for Python indexing
 print('Number of DICOMs: '+str(len(range(i_start,i_end))))
 pbar    = progressbar.ProgressBar(maxval = len(ECG_files[i_start:i_end])-1).start()
 
@@ -122,7 +122,7 @@ for i in range(i_start,i_end) :
 
         if ((i+1) == i_end):
             
-            batch_pre  = i_start if (i_end)<=batch_size else int((((i+1)//batch_size))*batch_size)
+            batch_pre  = i_start if (i_end)<=batch_size else int(((i//batch_size))*batch_size)
             batch_post = i_end
 
         elif ((i+1)%batch_size == 0):
