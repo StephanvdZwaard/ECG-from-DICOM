@@ -148,7 +148,7 @@ class ECGDICOMReader:
         read_dict["PatientName"]              = str(self.PatientName)
         read_dict["PatientSex"]               = self.PatientSex
         read_dict["StudyDate"]                = datetime.strptime(self.StudyDate, "%Y%m%d").strftime('%Y-%m-%d') #if your date is different format adapt
-        read_dict["StudyTime"]                = datetime.strptime(self.StudyTime[:6], "H%M%S").strftime('%H:%M:%S') 
+        read_dict["StudyTime"]                = datetime.strptime(self.StudyTime[:6].zfill(6), "%H%M%S").strftime('%H:%M:%S') 
         read_dict["StudyDescription"]         = self.StudyDescription
         read_dict["AcquisitionDateTime"]      = datetime.strptime(self.AcquisitionDateTime[:14], "%Y%m%d%H%M%S").strftime('%Y-%m-%d %H:%M:%S') 
         read_dict["AcquisitionTimeZone"]      = self.AcquisitionTimeZone
@@ -204,7 +204,7 @@ class ECGDICOMReader:
     
     # Define function to resample ECG waveforms to the default 500 Hz when necessary 
     def resampling_500hz(self):
-        """In case sf is 250, make 500"""
+        """In case sf is not 500, make 500"""
         if self.resample_500 is False:
             return int(self.sf)
         else:
