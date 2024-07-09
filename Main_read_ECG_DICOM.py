@@ -21,8 +21,7 @@ import sys;
 import numpy as np;
 import pandas as pd;
 #import matplotlib.pyplot as plt;
-import progressbar;
-
+import progressbar; 
 from datetime import datetime
 from scipy import signal
 from pydicom import dcmread
@@ -36,13 +35,13 @@ np.set_printoptions(threshold = 500)
 # Import and initialize class to parse DICOM file with ECG 
 from ECGDICOMReader import ECGDICOMReader
 ecgreader = ECGDICOMReader()
-verbose = True
+#verbose = True
 
 # Define required paths
-base_path      = "D:/Persoonlijke mappen/Stephan/"
-path_to_dicom  = "C:/Users/t1-svanderzwaard/Downloads/ECG/" #base_path+"Python/ECG/dicom/"
-path_to_archive= path_to_dicom+"/processed/"
-path_to_export = "C:/Users/t1-svanderzwaard/Downloads/" #"D:/AnacondaData/Stephan/"
+base_path      = "E:/AnacondaData/SvanderZwaard/Python/ecg-pipeline/"
+path_to_dicom  = "E:/DataExchange/Hartcentrum/ECG_input/" #base_path+"Python/ECG/dicom/"
+path_to_archive= path_to_dicom+"processed/"
+path_to_export = "E:/DataExchange/Hartcentrum/ECG_output/" #"D:/AnacondaData/Stephan/"
 
 # Define current date for filename of output
 today = datetime.today().strftime('%Y%m%d')
@@ -54,8 +53,12 @@ today = datetime.today().strftime('%Y%m%d')
 # Retrieve all DICOM files to be converted
 ECG_files = list() 
 for path, subdirs, files in os.walk(path_to_dicom):
+    subdirs[:] = [d for d in subdirs if d not in path_to_archive]
     for filename in files:
-        ECG_files.append(path+'/'+filename)
+        if path.endswith('/'):
+            ECG_files.append(path+filename)
+        else:
+            ECG_files.append(path+'/'+filename) 
 #print(ECG_files)
 
 # Loop over all DICOM files to convert using ECGDICOMReader()
@@ -67,10 +70,13 @@ original_waves = pd.DataFrame()
 error_dicom    = pd.DataFrame()
 
 # Set-up progressbar
-i_start = 35000
-i_end   = 40000 #len(ECG_files) #account for Python indexing
+i_start = 0
+i_end   = len(ECG_files) #account for Python indexing
 print('Number of DICOMs: '+str(len(range(i_start,i_end))))
-pbar    = progressbar.ProgressBar(maxval = len(ECG_files[i_start:i_end])-1).start()
+
+pbar = progressbar.ProgressBar(widgets = [progressbar.Percentage(), " ", progressbar.GranularBar(), " ", progressbar.ETA()], 
+                               maxval = len(ECG_files[i_start:i_end])-1, 
+                               redirect_stdout=True);
 
 for i in range(i_start,i_end) : 
     
@@ -103,7 +109,7 @@ for i in range(i_start,i_end) :
         wave = dicom.pop('Waveforms')
         mbeat= dicom.pop('MedianWaveforms')
         info = pd.DataFrame.from_dict(dicom, orient = 'index').transpose()
-        info = info.rename(columns = {'SOPinstanceUID':'record_id_ecg'})
+        info = info.rename(columns = {'SOPinstanceUID':'RECORD_ID_ECG'})
 
 
         # Combine data with previous records
@@ -154,6 +160,8 @@ for i in range(i_start,i_end) :
 
     # Update progressbar
     pbar.update(i-i_start)
+    
 
 # If finished
-print('Conversion finished! --- ')
+pbar.finished()
+#print('\nConversion finished! --- ')
