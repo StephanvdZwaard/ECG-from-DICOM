@@ -25,7 +25,7 @@ from scipy import signal
 # -------------------------------------------------------------------------------------
 
 class ECGDICOMReader:
-    """ Extract ECG waveform voltage and metadata data from a ECG measuremet stored within a DICOM file
+    """ Extract ECG waveform voltage and metadata data from a ECG measurement stored within DICOM file format
         Authors: Stephan van der Zwaard, s.vanderzwaard@amsterdamumc.nl and Philip Croon, p.croon@amsterdamumc.nl
         for questions feel free to email.    
         
@@ -148,7 +148,7 @@ class ECGDICOMReader:
         read_dict["PatientName"]              = str(self.PatientName)
         read_dict["PatientSex"]               = self.PatientSex
         read_dict["StudyDate"]                = datetime.strptime(self.StudyDate, "%Y%m%d").strftime('%Y-%m-%d') #if your date is different format adapt
-        read_dict["StudyTime"]                = self.StudyTime[:6]
+        read_dict["StudyTime"]                = datetime.strptime(self.StudyTime[:6], "H%M%S").strftime('%H:%M:%S') 
         read_dict["StudyDescription"]         = self.StudyDescription
         read_dict["AcquisitionDateTime"]      = datetime.strptime(self.AcquisitionDateTime[:14], "%Y%m%d%H%M%S").strftime('%Y-%m-%d %H:%M:%S') 
         read_dict["AcquisitionTimeZone"]      = self.AcquisitionTimeZone

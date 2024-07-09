@@ -40,9 +40,12 @@ verbose = True
 
 # Define required paths
 base_path      = "D:/Persoonlijke mappen/Stephan/"
-path_to_dicom  = base_path+"Python/ECG/dicom/"
+path_to_dicom  = "C:/Users/t1-svanderzwaard/Downloads/ECG/" #base_path+"Python/ECG/dicom/"
 path_to_archive= path_to_dicom+"/processed/"
-path_to_export = "D:/AnacondaData/Stephan/"
+path_to_export = "C:/Users/t1-svanderzwaard/Downloads/" #"D:/AnacondaData/Stephan/"
+
+# Define current date for filename of output
+today = datetime.today().strftime('%Y%m%d')
 
 # -------------------------------------------------------------------------------------
 #                       Data pipeline: conversion from DICOM to CSV 
@@ -64,8 +67,8 @@ original_waves = pd.DataFrame()
 error_dicom    = pd.DataFrame()
 
 # Set-up progressbar
-i_start = 5000
-i_end   = 10000 #len(ECG_files) #account for Python indexing
+i_start = 35000
+i_end   = 40000 #len(ECG_files) #account for Python indexing
 print('Number of DICOMs: '+str(len(range(i_start,i_end))))
 pbar    = progressbar.ProgressBar(maxval = len(ECG_files[i_start:i_end])-1).start()
 
@@ -100,6 +103,8 @@ for i in range(i_start,i_end) :
         wave = dicom.pop('Waveforms')
         mbeat= dicom.pop('MedianWaveforms')
         info = pd.DataFrame.from_dict(dicom, orient = 'index').transpose()
+        info = info.rename(columns = {'SOPinstanceUID':'record_id_ecg'})
+
 
         # Combine data with previous records
         general_info    = pd.concat([general_info,info], axis=0)
@@ -136,10 +141,10 @@ for i in range(i_start,i_end) :
         batch         = batch_prefix+str(batch_pre)+'_'+batch_postfix+str(batch_post) 
 
         # Save separate CSV-files for each batch
-        error_dicom.to_csv(path_to_export+'DICOM_error_'+batch+'.csv', index=False)
-        general_info.to_csv(path_to_export+'DICOM_ECG_GENERALINFO_'+batch+'.csv', index=False)
-        median_waves.to_csv(path_to_export+'DICOM_ECG_WAVEFORM_MEDIANBEAT_'+batch+'.csv', index=False)
-        original_waves.to_csv(path_to_export+'DICOM_ECG_WAVEFORM_RHYTHM_'+batch+'.csv', index=False)
+        error_dicom.to_csv(path_to_export+today+'_'+'DICOM_error_'+batch+'.csv', index=False)
+        general_info.to_csv(path_to_export+today+'_'+'DICOM_ECG_GENERALINFO_'+batch+'.csv', index=False)
+        median_waves.to_csv(path_to_export+today+'_'+'DICOM_ECG_WAVEFORM_MEDIANBEAT_'+batch+'.csv', index=False)
+        original_waves.to_csv(path_to_export+today+'_'+'DICOM_ECG_WAVEFORM_RHYTHM_'+batch+'.csv', index=False)
 
         # Preallocate dataframe after saving
         error_dicom    = pd.DataFrame()
