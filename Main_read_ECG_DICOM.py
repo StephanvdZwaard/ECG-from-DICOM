@@ -42,6 +42,7 @@ base_path      = "E:/AnacondaData/SvanderZwaard/Python/ecg-pipeline/"
 path_to_dicom  = "E:/DataExchange/Hartcentrum/ECG_input/" #base_path+"Python/ECG/dicom/"
 path_to_archive= path_to_dicom+"processed/"
 path_to_export = "E:/DataExchange/Hartcentrum/ECG_output/" #"D:/AnacondaData/Stephan/"
+path_to_logs   = path_to_export+"logs/"
 
 # Define current date for filename of output
 today = datetime.today().strftime('%Y%m%d')
@@ -71,7 +72,7 @@ error_dicom    = pd.DataFrame()
 
 # Set-up progressbar
 i_start = 0
-i_end   = len(ECG_files) #account for Python indexing
+i_end   = 5000 #len(ECG_files) #account for Python indexing
 print('Number of DICOMs: '+str(len(range(i_start,i_end))))
 
 pbar = progressbar.ProgressBar(widgets = [progressbar.Percentage(), " ", progressbar.GranularBar(), " ", progressbar.ETA()], 
@@ -147,7 +148,8 @@ for i in range(i_start,i_end) :
         batch         = batch_prefix+str(batch_pre)+'_'+batch_postfix+str(batch_post) 
 
         # Save separate CSV-files for each batch
-        error_dicom.to_csv(path_to_export+today+'_'+'DICOM_error_'+batch+'.csv', index=False)
+        error_dicom.to_csv(path_to_logs+today+'_'+'DICOM_error_'+batch+'.csv', index=False)
+        general_info.to_csv(path_to_logs+today+'_'+'DICOM_ECG_GENERALINFO_'+batch+'.csv', index=False)
         general_info.to_csv(path_to_export+today+'_'+'DICOM_ECG_GENERALINFO_'+batch+'.csv', index=False)
         median_waves.to_csv(path_to_export+today+'_'+'DICOM_ECG_WAVEFORM_MEDIANBEAT_'+batch+'.csv', index=False)
         original_waves.to_csv(path_to_export+today+'_'+'DICOM_ECG_WAVEFORM_RHYTHM_'+batch+'.csv', index=False)
@@ -164,4 +166,4 @@ for i in range(i_start,i_end) :
 
 # If finished
 pbar.finished()
-#print('\nConversion finished! --- ')
+print('\nConversion finished! --- ')
