@@ -72,7 +72,8 @@ error_dicom    = pd.DataFrame()
 
 # Set-up progressbar
 i_start = 0
-i_end   = 5000 #len(ECG_files) #account for Python indexing
+i_end   = len(ECG_files) #account for Python indexing
+offset  = 0 #number of scans already processed today.
 print('Number of DICOMs: '+str(len(range(i_start,i_end))))
 
 pbar = progressbar.ProgressBar(widgets = [progressbar.Percentage(), " ", progressbar.GranularBar(), " ", progressbar.ETA()], 
@@ -143,9 +144,9 @@ for i in range(i_start,i_end) :
             batch_post = int(((i+1)/batch_size)*batch_size)
 
         # Summarise batch range
-        batch_prefix  = get_batch_prefix(batch_pre)
-        batch_postfix = get_batch_prefix(batch_post)
-        batch         = batch_prefix+str(batch_pre)+'_'+batch_postfix+str(batch_post) 
+        batch_prefix  = get_batch_prefix(batch_pre+offset)
+        batch_postfix = get_batch_prefix(batch_post+offset)
+        batch         = batch_prefix+str(batch_pre+offset)+'_'+batch_postfix+str(batch_post+offset) 
 
         # Save separate CSV-files for each batch
         error_dicom.to_csv(path_to_logs+today+'_'+'DICOM_error_'+batch+'.csv', index=False)
