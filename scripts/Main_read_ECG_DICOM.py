@@ -47,6 +47,10 @@ path_to_logs   = "E:/DataExchange/Hartcentrum/ECG_archive/logs/"
 # Define current date for filename of output
 today = datetime.today().strftime('%Y%m%d')
 
+# Define output types to include
+export_waveforms = False
+export_summary   = True
+
 # -------------------------------------------------------------------------------------
 #                       Data pipeline: conversion from DICOM to CSV 
 # -------------------------------------------------------------------------------------
@@ -87,51 +91,57 @@ for i in range(i_start,i_end) :
     try:
         dicom = ecgreader(ECG_files[i], verbose=False)
 
-        # Generate Table 1: median waveform
-        mw = pd.DataFrame(dicom['MedianWaveforms'])
-        mw = mw.add_prefix('lead_')
-        mw["id"] = mw.index
-        mw = pd.wide_to_long(mw, stubnames ='lead_', i="id", j="lead",suffix = r'\w+').sort_index(level=0)
-        mw["SOPinstanceUID"] = dicom["SOPinstanceUID"]
-        mw["waveform"] = "median_beat"
-        mw = mw.reset_index()
-        mw = mw[["SOPinstanceUID", "waveform", "lead","id","lead_"]]
-        mw = mw.rename(columns = {'lead_':'voltage', 'id':'sample_id', 'SOPinstanceUID':'record_id_ecg'})
+        if export_waveforms == True:
+            
+            # Generate Table 1: median waveform
+            mw = pd.DataFrame(dicom['MedianWaveforms'])
+            mw = mw.add_prefix('lead_')
+            mw["id"] = mw.index
+            mw = pd.wide_to_long(mw, stubnames ='lead_', i="id", j="lead",suffix = r'\w+').sort_index(level=0)
+            mw["SOPinstanceUID"] = dicom["SOPinstanceUID"]
+            mw["waveform"] = "median_beat"
+            mw = mw.reset_index()
+            mw = mw[["SOPinstanceUID", "waveform", "lead","id","lead_"]]
+            mw = mw.rename(columns = {'lead_':'voltage', 'id':'sample_id', 'SOPinstanceUID':'record_id_ecg'})
+    
+            # Generate Table 2: waveform rhythm
+            w = pd.DataFrame(dicom['Waveforms'])
+            w = w.add_prefix('lead_')
+            w["id"] = w.index
+            w = pd.wide_to_long(w, stubnames ='lead_', i="id", j="lead",suffix = r'\w+').sort_index(level=0)
+            w["SOPinstanceUID"] = dicom["SOPinstanceUID"]
+            w["waveform"] = "rhythm"
+            w = w.reset_index()
+            w = w[["SOPinstanceUID", "waveform","lead", "id","lead_"]]
+            w = w.rename(columns = {'lead_':'voltage', 'id':'sample_id', 'SOPinstanceUID':'record_id_ecg'})
 
-        # Generate Table 2: waveform rhythm
-        w = pd.DataFrame(dicom['Waveforms'])
-        w = w.add_prefix('lead_')
-        w["id"] = w.index
-        w = pd.wide_to_long(w, stubnames ='lead_', i="id", j="lead",suffix = r'\w+').sort_index(level=0)
-        w["SOPinstanceUID"] = dicom["SOPinstanceUID"]
-        w["waveform"] = "rhythm"
-        w = w.reset_index()
-        w = w[["SOPinstanceUID", "waveform","lead", "id","lead_"]]
-        w = w.rename(columns = {'lead_':'voltage', 'id':'sample_id', 'SOPinstanceUID':'record_id_ecg'})
-
-        # Generate Table 3: summary
-        #summs = dicom['Summary']
-        #result = [summs[key] for key in summs if key.startswith('Summary')]
-        #s_text = ' \n'.join([str(item) for item in result])
-        #s_values = dict(filter(lambda item: not item[0].startswith('Summary'),
-        #          summs.items()))
-        #s = dict({'Summary':s_text}|s_values)
-        #s = pd.DataFrame.from_dict(s, orient = 'index').transpose()
-        #s["RECORD_ID_ECG"] = dicom["SOPinstanceUID"]
-        #print(s.keys())
+        if export_summary == True:
+            
+            # Generate Table 3: summary
+            summs = dicom['Summary']
+            result = [summs[key] for key in summs if key.startswith('Summary')]
+            s_text = ' \n'.join([str(item) for item in result])
+            s_values = dict(filter(lambda item: not item[0].startswith('Summary'),
+                      summs.items()))
+            s = dict({'Summary':s_text}|s_values)
+            s = pd.DataFrame.from_dict(s, orient = 'index').transpose()
+            s["RECORD_ID_ECG"] = dicom["SOPinstanceUID"]
+            #print(s.keys())
 
         # Generate Table 4: general info
         wave = dicom.pop('Waveforms')
         mbeat= dicom.pop('MedianWaveforms')
-        #summ = dicom.pop('Summary')
+        summ = dicom.pop('Summary')
         info = pd.DataFrame.from_dict(dicom, orient = 'index').transpose()
         info = info.rename(columns = {'SOPinstanceUID':'RECORD_ID_ECG'})
 
         # Combine data with previous records
         general_info    = pd.concat([general_info,info], axis=0)
-        #summary         = pd.concat([summary,s], axis=0)
-        median_waves    = pd.concat([median_waves,mw], axis=0)
-        original_waves  = pd.concat([original_waves,w], axis=0)
+        if export_summary == True:
+            summary         = pd.concat([summary,s], axis=0)
+        if export_waveforms == True:
+            median_waves    = pd.concat([median_waves,mw], axis=0)
+            original_waves  = pd.concat([original_waves,w], axis=0)
     
     except: # Retrieve relevant information when DICOM could not be read including the error
         dicom['file_no']  = i+1 #account for python indexing
@@ -166,16 +176,20 @@ for i in range(i_start,i_end) :
         error_dicom.to_csv(path_to_logs+today+'_'+'DICOM_error_'+batch+'.csv', index=False)
         general_info.to_csv(path_to_logs+today+'_'+'DICOM_ECG_GENERALINFO_'+batch+'.csv', index=False)
         general_info.to_csv(path_to_export+today+'_'+'DICOM_ECG_GENERALINFO_'+batch+'.csv', index=False)
-        #summary.to_csv(path_to_export+today+'_'+'DICOM_ECG_SUMMARY_'+batch+'.csv', index=False)
-        median_waves.to_csv(path_to_export+today+'_'+'DICOM_ECG_WAVEFORM_MEDIANBEAT_'+batch+'.csv', index=False)
-        original_waves.to_csv(path_to_export+today+'_'+'DICOM_ECG_WAVEFORM_RHYTHM_'+batch+'.csv', index=False)
+        if export_summary == True:
+            summary.to_csv(path_to_export+today+'_'+'DICOM_ECG_SUMMARY_'+batch+'.csv', index=False)
+        if export_waveforms == True:
+            median_waves.to_csv(path_to_export+today+'_'+'DICOM_ECG_WAVEFORM_MEDIANBEAT_'+batch+'.csv', index=False)
+            original_waves.to_csv(path_to_export+today+'_'+'DICOM_ECG_WAVEFORM_RHYTHM_'+batch+'.csv', index=False)
 
         # Preallocate dataframe after saving
         error_dicom    = pd.DataFrame()
         general_info   = pd.DataFrame()
-        #summary        = pd.DataFrame()
-        median_waves   = pd.DataFrame()
-        original_waves = pd.DataFrame()
+        if export_summary == True:
+            summary        = pd.DataFrame()
+        if export_waveforms == True:
+            median_waves   = pd.DataFrame()
+            original_waves = pd.DataFrame()
 
     # Update progressbar
     pbar.update(i-i_start)
@@ -185,4 +199,3 @@ for i in range(i_start,i_end) :
 pbar.finished()
 print('\nConversion finished! --- ')
 
-# ---------------------------------------- End of script ---------------------------------------- 

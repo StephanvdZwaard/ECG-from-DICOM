@@ -127,9 +127,15 @@ class ECGDICOMReader:
 
                 self.samplingfrequency     = self.resampling_500hz()
 
+                # Check if a summary is included in the DICOM file
+                try: 
+                    self.Summary           = self.retrieve_summary_dict()
+                except: 
+                    self.Summary           = 'No summary annotations present'
+                    
                 # Create dictionary from the above 
                 self.read_dict_final       = self.readable_dict()
-            
+
             return self.read_dict_final
 
         except Exception as e:
@@ -168,9 +174,45 @@ class ECGDICOMReader:
         read_dict["ManufacturerModelName"]    = self.ManufacturerModelName
         read_dict["SoftwareVersions"]         = self.SoftwareVersions
         read_dict["DataExportedBy"]           = self.DataExportedBy
+        read_dict["Summary"]                  = self.Summary
         read_dict["Waveforms"]                = self.LeadVoltages
         read_dict["MedianWaveforms"]          = self.LeadVoltages2
         return read_dict
+    
+    # Define function to extract summary description from ECG  
+    def retrieve_summary_dict(self):
+        SUMMARY = {'Summary': 'WaveformAnnotationSequence'}
+        
+        #### The summary dictionary
+        summary_dict = {}
+        for t, s in SUMMARY.items():
+            # if present in SUMMARY assign
+            if hasattr(self.ECG, s) and s == 'WaveformAnnotationSequence':
+                seq = getattr(self.ECG,s)
+                # Extract summary data by looping over annotation sequence
+                for i in range(0,len(seq)):
+                    if hasattr(seq[i], 'UnformattedTextValue'):
+                        summary_dict['Summary_L'+str(i)] = seq[i].UnformattedTextValue
+                    elif hasattr(seq[i],'ConceptNameCodeSequence') and hasattr(seq[i],'NumericValue'):
+                        if hasattr(getattr(seq[i],'ConceptNameCodeSequence')[0],'CodeMeaning'):
+                            summary_dict[seq[i].ConceptNameCodeSequence[0].CodeMeaning] = seq[i].NumericValue
+                    elif hasattr(seq[i],'ConceptNameCodeSequence') and hasattr(seq[i],'ReferencedSamplePositions'):
+                        if hasattr(getattr(seq[i],'ConceptNameCodeSequence')[0],'CodeMeaning'):
+                            if 'Pacemaker Spike' in seq[i].ConceptNameCodeSequence[0].CodeMeaning and seq[i].ReferencedSamplePositions > 0: 
+                                #summary_dict['PM_Spike'+str(i)] = seq[i].ReferencedSamplePositions
+                                summary_dict['PacemakerSpikes'] = 'Ja'
+                            else: 
+                                summary_dict[seq[i].ConceptNameCodeSequence[0].CodeMeaning] = seq[i].ReferencedSamplePositions
+                    #else:
+                    #    print(seq[i])
+            elif hasattr(self.ECG, s):
+                summary_dict[t] = getattr(self.ECG, s)
+            elif not hasattr(self.ECG, s) and s == 'WaveformAnnotationSequence':
+                summary_dict[t] = 'No summary annotations present'
+            else:
+                raise ValueError('`{0}` is not available.'.format(s))
+        return summary_dict
+        
     
     # Define function to extract voltages from ECG waveforms 
     def make_leadvoltages(self,nr):
