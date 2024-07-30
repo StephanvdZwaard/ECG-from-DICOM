@@ -184,3 +184,5 @@ for i in range(i_start,i_end) :
 # If finished
 pbar.finished()
 print('\nConversion finished! --- ')
+
+# ---------------------------------------- End of script ---------------------------------------- 
