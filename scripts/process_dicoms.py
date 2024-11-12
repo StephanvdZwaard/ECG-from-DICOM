@@ -3,17 +3,6 @@ A module to extract median beats and raw waveforms from DICOM ECGs wrapping
 pydicom.
 '''
 
-# NOTE implement the following
-# skip_emtpy should be renamed to empty_attribute which should be a literal with
-# options `Error`, `Skip`, `Skip-all`, where the Error should just raise errors
-# and `Skip` should skip empty attributes, while `Skip-all` Should also
-# skip empy wavform files - if you only want metadata.
-
-# NOTE should also rename skip_missing to file_errors usign the same Literals
-# but replacing None by Error. Additionally need to check the AttributeError reported
-# by Stephan when skip_missing is set to `Data` - this should skip AttributeErrors.
-
-
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 # imports
 import os
@@ -39,7 +28,6 @@ from ecgprocess.errors import (
     is_type,
     MissingDICOMTagError,
     Error_MSG,
-    Warn_MSG,
     STDOUT_MSG,
     _check_readable,
     _check_presence,
@@ -201,7 +189,7 @@ class ECGDICOMReader(BaseECGDICOMReader):
             Returns the class instance with updated attributes extracted
             from `dcmread`.
         """
-        is_type(path, (pathlib.PosixPath, pathlib.WindowsPath, str), 'path')
+        is_type(path, (pathlib.PosixPath, str), 'path')
         is_type(skip_empty, bool, 'skip_empty')
         is_type(verbose, bool, 'verbose')
         # confirm file is readable
@@ -218,17 +206,18 @@ class ECGDICOMReader(BaseECGDICOMReader):
             dicom_instance=ECG, skip_empty=skip_empty)
         results_dict.update(median_dict)
         # #### do we need to resample
-        if self.resample_500 == True:
+        if self.resample_500 == True: 
             # the function will internally adjust
             # LEAD_VOLTAGES, and LEAD_VOLTAGES2
             # Nothing is returned
-            self._resampling_500hz(frequency=results_dict[PDNames.SF_ORIGINAL])
-            setattr(self, PDNames.OVERSAMPLED, True)
-            results_dict[PDNames.OVERSAMPLED] = True
+            self._resampling_500hz(frequency=results_dict[PDNames.SF])
+            setattr(self, PDNames.RESAMPLED, True)
+            results_dict[PDNames.RESAMPLED] = True
+            results_dict[PDNames.SF] = 500
             results_dict[PDNames.SAMPLING_FREQ] = 500
         else:
-            setattr(self, PDNames.OVERSAMPLED, False)
-            results_dict[PDNames.OVERSAMPLED] = False
+            setattr(self, PDNames.RESAMPLED, False)
+            results_dict[PDNames.RESAMPLED] = False
         # #### remove raw data
         if self.retain_raw == False:
             try:
@@ -236,11 +225,13 @@ class ECGDICOMReader(BaseECGDICOMReader):
                 delattr(self, PDNames.MEDIAN_ARRAY)
             except AttributeError:
                 pass
+        ## Remove SF column
+        #results_dict.drop[PDNames.SF]
         # #### Extract standard ECG measurements
-        _, ecg_traits, missing_ecg_traits = self._get_waveform_annotation(
-            dicom_instance=ECG, skip_empty=skip_empty)
-        results_dict.update(ecg_traits)
-        empty_metadata = empty_metadata + missing_ecg_traits
+        #_, ecg_traits, missing_ecg_traits = self._get_waveform_annotation(
+        #    dicom_instance=ECG, skip_empty=skip_empty)
+        #results_dict.update(ecg_traits)
+        #empty_metadata = empty_metadata + missing_ecg_traits
         # #### end of extractions, optionally printing tags which were missing
         if verbose == True:
             if len(empty_metadata) + len(empty_wave_forms) +\
@@ -300,7 +291,7 @@ class ECGDICOMReader(BaseECGDICOMReader):
         Either supply a path to a dicom file or a DCM_Class instance
         '''
         # #### check input
-        is_type(path, (type(None), pathlib.PosixPath, pathlib.WindowsPath, str))
+        is_type(path, (type(None), pathlib.PosixPath, str))
         is_type(dicom_instance, (type(None), DCM_Class))
         is_type(skip_empty, bool)
         results_dict = {}
@@ -356,7 +347,7 @@ class ECGDICOMReader(BaseECGDICOMReader):
         Either supply a path to a dicom file or a DCM_Class instance
         '''
         # #### check input
-        is_type(path, (type(None), pathlib.PosixPath, pathlib.WindowsPath, str))
+        is_type(path, (type(None), pathlib.PosixPath, str))
         is_type(dicom_instance, (type(None), DCM_Class))
         is_type(skip_empty, bool)
         temp_results_dict = {}
@@ -444,7 +435,7 @@ class ECGDICOMReader(BaseECGDICOMReader):
         Either supply a path to a dicom file or a DCM_Class instance
         '''
         # #### check input
-        is_type(path, (type(None), pathlib.PosixPath, pathlib.WindowsPath, str))
+        is_type(path, (type(None), pathlib.PosixPath, str))
         is_type(dicom_instance, (type(None), DCM_Class))
         is_type(skip_empty, bool)
         temp_results_dict = {}
@@ -544,7 +535,7 @@ class ECGDICOMReader(BaseECGDICOMReader):
         Either supply a path to a dicom file or a DCM_Class instance
         '''
         # #### check input
-        is_type(path, (type(None), pathlib.PosixPath, pathlib.WindowsPath, str))
+        is_type(path, (type(None), pathlib.PosixPath, str))
         is_type(dicom_instance, (type(None), DCM_Class))
         is_type(skip_empty, bool)
         default_results_dict = {}
@@ -579,19 +570,10 @@ class ECGDICOMReader(BaseECGDICOMReader):
                         ecg_trait = getattr(ecg_int, PDNames.CODE_MEANING)
                         # find matching element - using lower case again
                         if ecg_trait.lower() in ECG_CMPR_LWR:
-                            # get the measurement and set to float, will
-                            # skip float conversion if None type.
-                            try:
-                                temp_results_dict[ecg_trait.lower()] = float(
-                                            getattr(w, PDNames.ECG_TRAIT_VALUE)
-                                        )
-                            except TypeError:
-                                temp_results_dict[ecg_trait.lower()] = \
-                                    getattr(w, PDNames.ECG_TRAIT_VALUE)
-                                # see if we need to warn
-                                if self.verbose == True:
-                                    warnings.warn(Warn_MSG.NUMB_IS_NONE.\
-                                                  format(w))
+                            # get the measurement and set to float
+                            temp_results_dict[ecg_trait.lower()] = float(
+                                        getattr(w, PDNames.ECG_TRAIT_VALUE)
+                                    )
                             # get the unit
                             try:
                                 temp_unit_dict[
@@ -793,15 +775,6 @@ class ECGDICOMTable(object):
     Takes an `ECGDICOMReader` instance and loops over a list of dicom paths
     and maps these to which can be used in analyses or saved to disk.
     
-    Parameters
-    ----------
-    ecgdicomreader : ECGDICOMReader
-        An instance of the ECGDICOMReader data class.
-    path_list : list [`str`]
-        A list of paths to one or more .dcm files.
-    info_type : {`all`, `rhythm`, `median`, `meta`}
-        Which information should be extracted.
-    
     Attributes
     ----------
     RawPathList : list [`str`]
@@ -831,6 +804,15 @@ class ECGDICOMTable(object):
                  ) -> None:
         """
         Initialises a new instance of `ECGDICOMTable`.
+        
+        Parameters
+        ----------
+        ecgdicomreader : ECGDICOMReader
+            An instance of the ECGDICOMReader data class.
+        path_list : list [`str`]
+            A list of paths to one or more .dcm files.
+        info_type : {`all`, `rhythm`, `median`, `meta`}
+            Which information should be extracted.
         """
         EXP_INFO=[PDNames.INFO_TYPE_ALL, PDNames.INFO_TYPE_RTM,
                   PDNames.INFO_TYPE_MED, PDNames.INFO_TYPE_MET,
@@ -1100,28 +1082,24 @@ class ECGDICOMTable(object):
             setattr(self, PREV, current_keys)
             del current_keys
         # #### formatting to long
-        if table.empty == False:
-            table[PDNames.SAMPLING_SEQ] = table.groupby(
-                PDNames.SOP_UID).cumcount()
-            long_table = pd.melt(table, id_vars=\
-                                 [PDNames.SOP_UID, PDNames.SAMPLING_SEQ],
-                                 value_vars=getattr(self, PREV),
-                                 var_name=PDNames.COL_LEAD,
-                                 value_name=PDNames.COL_VOLTAGE
-                                 )
-            long_table[PDNames.COL_WAVETYPE] = wave_type
-        else:
-            long_table = table
+        table[PDNames.SAMPLING_SEQ] = table.groupby(
+            PDNames.SOP_UID).cumcount()
+        long_table = pd.melt(table, id_vars=\
+                             [PDNames.SOP_UID, PDNames.SAMPLING_SEQ],
+                             value_vars=getattr(self, PREV),
+                             var_name=PDNames.COL_LEAD,
+                             value_name=PDNames.COL_VOLTAGE
+                             )
+        long_table[PDNames.COL_WAVETYPE] = wave_type
         # #### return
         return long_table
     # /////////////////////////////////////////////////////////////////////////
-    def write_ecg(self, target_tar: None | str = None, target_path:str='.',
-                  sep:str='\t', mode:str='w:gz',
-                  compression:str | None ='gzip',
-                  update_keys: None | dict[str,str] =None,
+    def write_ecg(self, target_tar:Union[None,str]=None, target_path:str='.',
+                  table_prefix:str='',
+                  sep:str='\t', mode:str='w:gz', compression:str='gzip',
+                  update_keys:Optional[Dict[str,str]]=None,
                   write_failed:bool=True,
-                  kwargs_reader: None | dict[str, Any] = None,
-                  kwargs_write: None | dict[str, Any] = None,
+                  **kwargs:Optional[Any],
                   ) -> Self:
         '''
         Extracts dicom files, and write these one by one to a set of target
@@ -1142,6 +1120,8 @@ class ECGDICOMTable(object):
             `target_tar` will be created underneath this path, otherwise the
             files will be directly written to the `target_path` terminal
             directory (assuming this is writable).
+        table_prefix : str, default ''
+            Prefix for filenames of all tables, e.g. to add context information 
         sep : str, default '\t'`
             The file separator, which will be passed to
             pandas.DataFrame.to_csv.
@@ -1154,13 +1134,9 @@ class ECGDICOMTable(object):
         write_failed : bool, default `True`
             Whether to write a text file to disk containing the failed file
             names.
-        kwargs_reader : `dict` [`str`, `any`], default `None`
+        **kwargs : Optional[Any],
             Keyword arguments used in the call method of a `ECGDICOMReader`
             instance.
-        kwargs_write : `dict` [`str`, `any`], default `None`
-            Keyword argument for `pd.DataFrame.to_csv`. Currently allowing
-            for one set of kwargs for all tables, also not allowing to
-            overwrite key internal arguments: `sep`, `header`, `compression`.
         
         Attributes
         ----------
@@ -1187,15 +1163,14 @@ class ECGDICOMTable(object):
         NotADirectoryError or PermissionError
             If the target directory does not exist or is not writable.
         '''
-        # if kwargs is None assigned an empty dict
-        self.kwargs = kwargs_reader or {}
-        kwargs_write = kwargs_write or {}
+        self.kwargs = kwargs
         # #### check input and set constants
-        is_type(target_tar, (type(None), str))
-        is_type(target_path, (pathlib.PosixPath, pathlib.WindowsPath, str))
-        is_type(sep, str)
-        is_type(mode, str)
-        is_type(compression, (type(None), str))
+        is_type(target_tar, (type(None), str), 'target_tar')
+        is_type(target_path, (pathlib.PosixPath, str), 'target_path')
+        is_type(sep, str, 'sep')
+        is_type(table_prefix, str, 'table_prefix')
+        is_type(mode, str, 'mode')
+        is_type(compression, (type(None), str), 'compression')
         # check readability
         _check_presence(target_path)
         _check_readable(target_path)
@@ -1246,9 +1221,8 @@ class ECGDICOMTable(object):
                 print([key_list[-1]])
                 if getattr(self, PDNames.INFO_TYPE) in self.INFO_MET:
                     pd.DataFrame([info], index=[key_list[-1]]).to_csv(
-                        os.path.join(target, PDNames.INFO_FILE), sep=sep,
-                        header=True, compression=compression,
-                        **kwargs_write,)
+                        os.path.join(target, table_prefix + PDNames.INFO_FILE), sep=sep,
+                        header=True, index=False, compression=compression)
                 # waveforms
                 if getattr(self, PDNames.INFO_TYPE) in self.INFO_RTM:
                     self._get_long_table(
@@ -1256,9 +1230,8 @@ class ECGDICOMTable(object):
                         update_keys=update_keys,
                         purge_header=True,
                     ).to_csv(
-                        os.path.join(target, PDNames.WAVE_FILE), sep=sep,
-                        header=True, compression=compression,
-                        **kwargs_write,)
+                            os.path.join(target, table_prefix + PDNames.WAVE_FILE), sep=sep,
+                            header=True, index=False, compression=compression)
                 # median beats
                 if getattr(self, PDNames.INFO_TYPE) in self.INFO_MED:
                     self._get_long_table(
@@ -1266,17 +1239,15 @@ class ECGDICOMTable(object):
                         update_keys=update_keys,
                         purge_header=True,
                     ).to_csv(
-                        os.path.join(target, PDNames.MEDIAN_FILE), sep=sep,
-                        header=True, compression=compression,
-                        **kwargs_write,)
+                            os.path.join(target, table_prefix + PDNames.MEDIAN_FILE), sep=sep,
+                            header=True, index=False, compression=compression)
             else:
                 # appending using mode = 'a'
                 # metadata
                 if getattr(self, PDNames.INFO_TYPE) in self.INFO_MET:
                     pd.DataFrame([info], index=[key_list[-1]]).to_csv(
-                        os.path.join(target, PDNames.INFO_FILE), sep=sep,
-                        header=False, mode='a', compression=compression,
-                        **kwargs_write,)
+                        os.path.join(target, table_prefix + PDNames.INFO_FILE), sep=sep,
+                        header=False, index=False, mode='a', compression=compression)
                 # waveforms
                 if getattr(self, PDNames.INFO_TYPE) in self.INFO_RTM:
                     self._get_long_table(
@@ -1284,9 +1255,8 @@ class ECGDICOMTable(object):
                         update_keys=update_keys,
                         purge_header=False,
                     ).to_csv(
-                        os.path.join(target, PDNames.WAVE_FILE), sep=sep,
-                        header=False, mode='a', compression=compression,
-                        **kwargs_write,)
+                            os.path.join(target, table_prefix + PDNames.WAVE_FILE), sep=sep,
+                            header=False, index=False, mode='a', compression=compression)
                 # median beats
                 if getattr(self, PDNames.INFO_TYPE) in self.INFO_MED:
                     self._get_long_table(
@@ -1294,9 +1264,8 @@ class ECGDICOMTable(object):
                         update_keys=update_keys,
                         purge_header=False,
                     ).to_csv(
-                        os.path.join(target, PDNames.MEDIAN_FILE), sep=sep,
-                        header=False, mode='a', compression=compression,
-                        **kwargs_write,)
+                            os.path.join(target, table_prefix + PDNames.MEDIAN_FILE), sep=sep,
+                            header=False, index=False, mode='a', compression=compression)
             # delete key
             delattr(self, PDNames.KEY_L)
         # #### write failed files, note not compressing these
@@ -1309,7 +1278,7 @@ class ECGDICOMTable(object):
                 (p, PDNames.SKIP_DATA) for p in\
                     getattr(self, PDNames.FAILED_DATA_L)]
             # writing to text file
-            with open(os.path.join(target, PDNames.FAILED_FILE), 'w') as file:
+            with open(os.path.join(target, table_prefix + PDNames.FAILED_FILE), 'w') as file:
                 for p, cause in total_failures:
                     file.write(p + DELIM + cause + "\n")
         # #### if needed replace directory by tar.gz version
@@ -1370,7 +1339,7 @@ class ECGDICOMTable(object):
         is_type(kwargs_drawing, (type(None), dict))
         is_type(kwargs_savefig, (type(None), dict))
         is_type(ecgdrawing, ECGDrawing)
-        is_type(target_path, (pathlib.PosixPath, pathlib.WindowsPath, str))
+        is_type(target_path, (pathlib.PosixPath, str))
         is_type(write_failed, bool)
         # check readability
         _check_presence(target_path)

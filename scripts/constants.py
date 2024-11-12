@@ -32,6 +32,7 @@ class ProcessDicomNames(object):
     SAMPLING_NUMBER       = 'NumberOfWaveformSamples'
     SAMPLING_NUMBER_M     = 'NumberOfWaveformSamples (MEDIAN)'
     SF_ORIGINAL           = 'SamplingFrequencyOriginal'
+    SF                    = 'sf'
     DURATION              = 'Duration'
     UNIT                  = 'Unit free'
     LEAD                  = 'Lead'
@@ -41,9 +42,9 @@ class ProcessDicomNames(object):
     LEAD_aVR              = 'aVR'
     LEAD_aVL              = 'aVL'
     LEAD_aVF              = 'aVF'
-    OVERSAMPLED           = 'resampled'
+    RESAMPLED             = 'Resampled'
     ORIG_DCMREAD_INST     = 'DMCReadInstance'
-    SOP_UID               = 'SOPinstanceUID'
+    SOP_UID               = 'RECORD_ID_ECG'
     # INFO_L                = 'GeneralInfoList'
     # WAVE_L                = 'WaveformsList'
     # MEDIAN_L              = 'MedianWaveformsList'
@@ -81,7 +82,7 @@ class ProcessDicomNames(object):
     PACEMAKER_SPIKE       = 'Pacemaker Spike'
     FREE_TEXT             = 'UnformattedTextValue'
     SKIP_PERMISSIONS      = 'Permissions'
-    SKIP_DATA             = 'Data'
+    SKIP_DATA             = 'Data' #'None' 
     SKIP_NONE             = 'None'
     WAVE_SCALING          = 'mm_mv'
     MICROVOLT             = 'microvolt'
@@ -104,8 +105,6 @@ class ProcessDicomNames(object):
     INFO_TYPE_RTM         = 'rhythm'
     INFO_TYPE_MED         = 'median'
     INFO_TYPE_MET         = 'meta'
-    START_POS_FIRST       = 'first'
-    START_POS_CONT        = 'continues'
 
 # %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 @dataclass
@@ -173,6 +172,7 @@ class DICOMTags(object):
         'FilterLowFrequency'              : 'FilterLowFrequency',
         'FilterHighFrequency'             : 'FilterHighFrequency',
         'NotchFilterFrequency'            : 'NotchFilterFrequency',
+        ProcessDicomNames.SF              : 'SamplingFrequency',
         ProcessDicomNames.SF_ORIGINAL     : 'SamplingFrequency',
     }
     # objects which cannot be extracted in a loop

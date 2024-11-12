@@ -240,14 +240,6 @@ class Error_MSG(object):
 
 # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 # error messages
-class Warn_MSG(object):
-    '''
-    A collection of warning messages.
-    '''
-    NUMB_IS_NONE = '`{}` is NoneType, cannot convert to numerical.'
-
-# ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-# error messages
 class STDOUT_MSG(object):
     '''
     A collection of stdout messages.
